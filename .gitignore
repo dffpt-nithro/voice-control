@@ -1,0 +1,33 @@
+# Виртуальное окружение Python
+venv/
+env/
+.env
+.venv
+
+# Файлы Python (кэш)
+__pycache__/
+*.py[cod]
+*.so
+.Python
+
+# Файлы Visual Studio
+.vs/
+*.user
+*.suo
+*.pyproj.user
+
+# Файлы IDE
+.idea/
+.vscode/
+
+# Временные файлы
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# Файлы сборки
+build/
+dist/
+*.exe
+*.egg-info/
