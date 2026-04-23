@@ -10,11 +10,11 @@ def listen_and_recognize():
     with sr.Microphone() as source:
         print("🎤 Слушаю... (скажите команду)")
         
+        # Пробуем настроить шумоподавление
         try:
             recognizer.adjust_for_ambient_noise(source, duration=1)
-        except Exception as e:
-            print(f"⚠️ Не удалось настроить шумоподавление: {e}")
-            print("Продолжаю без настройки...")
+        except Exception:
+            pass  # Продолжаем без настройки
         
         recognizer.energy_threshold = 300
         
@@ -35,34 +35,81 @@ def listen_and_recognize():
             print(f"🌐 Ошибка соединения с сервисом распознавания: {e}")
             return None
 
+
+def matches_command(text, keywords):
+    """
+    Проверяет, содержится ли в тексте хотя бы одна из ключевых фраз.
+    """
+    if text is None:
+        return False
+    
+    for keyword in keywords:
+        if keyword in text:
+            return True
+    return False
+
+
 def execute_command(text):
     """
     Выполняет действие в зависимости от распознанной команды.
     """
     if text is None:
-        return
+        return True
     
-    if "блокнот" in text:
+    # === КОМАНДЫ ДЛЯ ОТКРЫТИЯ БЛОКНОТА ===
+    notepad_keywords = [
+        "открой блокнот",
+        "открыть блокнот",
+        "запусти блокнот",
+        "запустить блокнот",
+        "открой notepad",
+        "open notepad"
+    ]
+    
+    if matches_command(text, notepad_keywords):
         print("🚀 Запускаю Блокнот...")
-        os.system("notepad.exe")
+        os.system("start notepad.exe")
+        return True
     
-    elif "notepad" in text:
-        print("🚀 Opening Notepad...")
-        os.system("notepad.exe")
+    # === КОМАНДЫ ДЛЯ ЗАКРЫТИЯ БЛОКНОТА ===
+    close_notepad_keywords = [
+        "закрой блокнот",
+        "закрыть блокнот",
+        "убери блокнот",
+        "сверни блокнот",
+        "закрой notepad",
+        "close notepad"
+    ]
     
-    elif "выход" in text or "exit" in text or "quit" in text:
+    if matches_command(text, close_notepad_keywords):
+        print("🔒 Закрываю Блокнот...")
+        os.system("taskkill /f /im notepad.exe 2>nul")
+        print("   Блокнот закрыт (если был открыт).")
+        return True
+    
+    # === КОМАНДЫ ВЫХОДА ===
+    exit_keywords = [
+        "выход",
+        "выйти",
+        "закрой программу",
+        "закрыть программу",
+        "стоп",
+        "exit",
+        "quit",
+        "останови программу"
+    ]
+    
+    if matches_command(text, exit_keywords):
         print("👋 Завершение работы программы...")
-        return False  
-    
-    else:
-        print(f"ℹ️ Команда '{text}' не распознана. Доступные команды: 'блокнот', 'notepad', 'выход', 'exit'.")
-    
-    return True  
+        return False
 
+
+# ====== ЗАПУСК ПРОГРАММЫ ======
 if __name__ == "__main__":
     print("=" * 50)
     print("🎙️  ГОЛОСОВОЙ ПОМОЩНИК ЗАПУЩЕН")
-    print("📋 Доступные команды: 'блокнот' / 'notepad', 'выход' / 'exit'")
+    print('📋 Команды: "Открой блокнот", "Закрой блокнот"')
+    print('   Для выхода: "Выход", "Закрой программу"')
     print("=" * 50)
     
     running = True
@@ -70,4 +117,4 @@ if __name__ == "__main__":
         text = listen_and_recognize()
         if text:
             running = execute_command(text)
-        print("-" * 40)  
+        print("-" * 40)
