@@ -10,11 +10,10 @@ def listen_and_recognize():
     with sr.Microphone() as source:
         print("🎤 Слушаю... (скажите команду)")
         
-        # Пробуем настроить шумоподавление
         try:
             recognizer.adjust_for_ambient_noise(source, duration=1)
         except Exception:
-            pass  # Продолжаем без настройки
+            pass  
         
         recognizer.energy_threshold = 300
         
@@ -56,7 +55,6 @@ def execute_command(text):
     if text is None:
         return True
     
-    # === КОМАНДЫ ДЛЯ ОТКРЫТИЯ БЛОКНОТА ===
     notepad_keywords = [
         "открой блокнот",
         "открыть блокнот",
@@ -68,10 +66,9 @@ def execute_command(text):
     
     if matches_command(text, notepad_keywords):
         print("🚀 Запускаю Блокнот...")
-        os.system("start notepad.exe")
+        os.system("notepad.exe")
         return True
     
-    # === КОМАНДЫ ДЛЯ ЗАКРЫТИЯ БЛОКНОТА ===
     close_notepad_keywords = [
         "закрой блокнот",
         "закрыть блокнот",
@@ -87,7 +84,6 @@ def execute_command(text):
         print("   Блокнот закрыт (если был открыт).")
         return True
     
-    # === КОМАНДЫ ВЫХОДА ===
     exit_keywords = [
         "выход",
         "выйти",
@@ -102,9 +98,13 @@ def execute_command(text):
     if matches_command(text, exit_keywords):
         print("👋 Завершение работы программы...")
         return False
+    
+    print(f"ℹ️ Команда не распознана. Попробуйте:")
+    print('   - "Открой блокнот" / "Запусти блокнот"')
+    print('   - "Закрой блокнот"')
+    print('   - "Выход" / "Закрой программу"')
+    return True
 
-
-# ====== ЗАПУСК ПРОГРАММЫ ======
 if __name__ == "__main__":
     print("=" * 50)
     print("🎙️  ГОЛОСОВОЙ ПОМОЩНИК ЗАПУЩЕН")
