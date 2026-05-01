@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Widget</class>
+ <widget class="QWidget" name="Widget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>348</width>
+    <height>639</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Voice Control</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>357</width>
+     <height>644</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">
+     QWidget {
+         background-color: #000000;
+     }
+    </string>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_3">
+    <property name="spacing">
+     <number>20</number>
+    </property>
+    <property name="leftMargin">
+     <number>50</number>
+    </property>
+    <property name="topMargin">
+     <number>30</number>
+    </property>
+    <property name="rightMargin">
+     <number>50</number>
+    </property>
+    <property name="bottomMargin">
+     <number>30</number>
+    </property>
+    <item>
+     <widget class="QFrame" name="recognitionFrame_3">
+      <property name="styleSheet">
+       <string notr="true">
+        QFrame {
+            background-color: #0a0a0a;
+            border: 1px solid #66ccff;
+            border-radius: 15px;
+            padding: 15px;
+        }
+        QFrame:hover {
+            border-color: #88ddff;
+        }
+       </string>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <widget class="QLabel" name="recognitionLabel_3">
+         <property name="styleSheet">
+          <string notr="true">
+           QLabel {
+               color: #88ccff;
+               background-color: transparent;
+               font-family: 'Arial';
+               font-size: 20px;
+               font-weight: bold;
+           }
+          </string>
+         </property>
+         <property name="text">
+          <string>распознано: ---</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <spacer name="middleSpacer_3">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>40</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="recordButtonLayout_2">
+      <item>
+       <widget class="QPushButton" name="recordButton_3">
+        <property name="minimumSize">
+         <size>
+          <width>120</width>
+          <height>120</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>120</width>
+          <height>120</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">
+          QPushButton {
+              background-color: #0a0a0a;
+              color: #88ccff;
+              border: 2px solid #66ccff;
+              border-radius: 60px;
+              font-size: 18px;
+              font-weight: bold;
+              font-family: 'Arial';
+          }
+          QPushButton:hover {
+              background-color: #1a1a1a;
+              border: 2px solid #88ddff;
+              box-shadow: 0 0 20px rgba(102, 204, 255, 0.3);
+          }
+          QPushButton:pressed {
+              background-color: #002233;
+              border: 2px solid #aaffff;
+          }
+         </string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="recordButtonLabel_2">
+        <property name="styleSheet">
+         <string notr="true">
+          QLabel {
+              color: #88ccff;
+              background-color: transparent;
+              font-family: 'Arial';
+              font-size: 16px;
+              font-weight: normal;
+              margin-top: 15px;
+          }
+         </string>
+        </property>
+        <property name="text">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;нажмите и говорите&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <spacer name="bottomSpacer1_3">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Fixed</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>30</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="commandInputLayout">
+      <property name="spacing">
+       <number>8</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="commandInputLabel">
+        <property name="styleSheet">
+         <string notr="true">
+          QLabel {
+              color: #66ccff;
+              background-color: transparent;
+              font-family: 'Arial';
+              font-size: 14px;
+              font-weight: normal;
+              margin-left: 5px;
+          }
+         </string>
+        </property>
+        <property name="text">
+         <string>ручной ввод команд</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignLeading</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="commandInputHorizontalLayout">
+        <property name="spacing">
+         <number>10</number>
+        </property>
+        <item>
+         <widget class="QLineEdit" name="commandInput_3">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">
+            QLineEdit {
+                background-color: #0a0a0a;
+                color: #88ccff;
+                border: 1px solid #66ccff;
+                border-radius: 8px;
+                padding: 10px;
+                font-size: 16px;
+                font-family: 'Arial';
+            }
+            QLineEdit:focus {
+                border: 1px solid #88ddff;
+                background-color: #0f0f0f;
+                box-shadow: 0 0 10px rgba(102, 204, 255, 0.2);
+            }
+           </string>
+          </property>
+          <property name="placeholderText">
+           <string>введите команду...</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="sendCommandButton">
+          <property name="minimumSize">
+           <size>
+            <width>50</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>50</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">
+            QPushButton {
+                background-color: #0a0a0a;
+                color: #88ccff;
+                border: 1px solid #66ccff;
+                border-radius: 8px;
+                font-size: 24px;
+                font-weight: bold;
+                font-family: 'Segoe UI', 'Arial';
+            }
+            QPushButton:hover {
+                background-color: #1a2a33;
+                border: 1px solid #88ddff;
+                box-shadow: 0 0 10px rgba(102, 204, 255, 0.3);
+            }
+            QPushButton:pressed {
+                background-color: #002233;
+            }
+           </string>
+          </property>
+          <property name="text">
+           <string>✓</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <spacer name="bottomSpacer2_2">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Fixed</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
