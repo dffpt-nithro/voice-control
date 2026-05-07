@@ -84,13 +84,15 @@ class VoiceAssistant(QMainWindow):
         running = VoiceCommandProcessor.execute_command(
             text,
             callback_update=self.update_status
-        )
+            )
+        self.stop_voice_recognition()  
         if not running:
             self.close()
 
     def on_recognition_error(self, message):
         """Ошибка распознавания"""
         self.update_status(message)
+        self.stop_voice_recognition()
         self.play_sound()  
 
     def send_text_command(self):
