@@ -26,6 +26,8 @@
     <string notr="true">
      QWidget {
          background-color: #000000;
+         font-family: 'Times New Roman', serif;
+         font-size: 16px;
      }
     </string>
    </property>
@@ -34,13 +36,13 @@
      <number>20</number>
     </property>
     <property name="leftMargin">
-     <number>50</number>
+     <number>40</number>
     </property>
     <property name="topMargin">
      <number>30</number>
     </property>
     <property name="rightMargin">
-     <number>50</number>
+     <number>40</number>
     </property>
     <property name="bottomMargin">
      <number>30</number>
@@ -68,7 +70,6 @@
            QLabel {
                color: #88ccff;
                background-color: transparent;
-               font-family: 'Arial';
                font-size: 20px;
                font-weight: bold;
            }
@@ -79,6 +80,15 @@
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
         </widget>
        </item>
@@ -100,7 +110,7 @@
     </item>
     <item>
      <layout class="QVBoxLayout" name="recordButtonLayout_2">
-      <item>
+      <item alignment="Qt::AlignHCenter|Qt::AlignVCenter">
        <widget class="QPushButton" name="recordButton_3">
         <property name="minimumSize">
          <size>
@@ -121,9 +131,8 @@
               color: #88ccff;
               border: 2px solid #66ccff;
               border-radius: 60px;
-              font-size: 18px;
+              font-size: 32px;
               font-weight: bold;
-              font-family: 'Arial';
           }
           QPushButton:hover {
               background-color: #1a1a1a;
@@ -148,18 +157,19 @@
           QLabel {
               color: #88ccff;
               background-color: transparent;
-              font-family: 'Arial';
-              font-size: 16px;
-              font-weight: normal;
-              margin-top: 15px;
+              font-size: 18px;
+              margin-top: 10px;
           }
          </string>
         </property>
         <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;нажмите и говорите&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>нажмите и говорите</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -193,9 +203,7 @@
           QLabel {
               color: #66ccff;
               background-color: transparent;
-              font-family: 'Arial';
-              font-size: 14px;
-              font-weight: normal;
+              font-size: 18px;
               margin-left: 5px;
           }
          </string>
@@ -228,14 +236,12 @@
                 color: #88ccff;
                 border: 1px solid #66ccff;
                 border-radius: 8px;
-                padding: 10px;
-                font-size: 16px;
-                font-family: 'Arial';
+                padding: 12px;
+                font-size: 22px;
             }
             QLineEdit:focus {
                 border: 1px solid #88ddff;
                 background-color: #0f0f0f;
-                box-shadow: 0 0 10px rgba(102, 204, 255, 0.2);
             }
            </string>
           </property>
@@ -267,7 +273,6 @@
                 border-radius: 8px;
                 font-size: 24px;
                 font-weight: bold;
-                font-family: 'Segoe UI', 'Arial';
             }
             QPushButton:hover {
                 background-color: #1a2a33;
