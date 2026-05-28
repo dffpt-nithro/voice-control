@@ -1,9 +1,24 @@
 import sys
+import os
 from PyQt5 import uic
 from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot
 from VoiceControl import RecognitionThread, VoiceCommandProcessor
 import keyboard
+
+
+# ------------------------------------------------------------
+# Функция для получения правильного пути к ресурсам
+# ------------------------------------------------------------
+def resource_path(relative_path):
+    """Получает абсолютный путь к ресурсу, работает и в dev, и в PyInstaller"""
+    try:
+        # PyInstaller создает временную папку и хранит путь в _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
 
 
 # ------------------------------------------------------------
@@ -71,7 +86,10 @@ class GlobalHotkeyListener(QObject):
 class VoiceAssistant(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('form.ui', self)
+        
+        # Используем resource_path для загрузки UI файла
+        ui_path = resource_path('form.ui')
+        uic.loadUi(ui_path, self)
 
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         self.setMinimumSize(420, 680)

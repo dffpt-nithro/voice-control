@@ -337,4 +337,4 @@ if __name__ == "__main__":
             except sr.UnknownValueError:
                 print("❓ Не распознано")
             except sr.RequestError as e:
-                print(f"🌐 Ошибка: {e}")
+                print(f"🌐 Ошибка: {e}")  
