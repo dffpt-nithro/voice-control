@@ -1,29 +1,18 @@
 import sys
-import os
 from PyQt5 import uic
-from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QSizePolicy,
+    QSystemTrayIcon, QMenu, QAction, QStyle
+)
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot
-from VoiceControl import RecognitionThread, VoiceCommandProcessor
+from PyQt5.QtGui import QIcon
+from VoiceControl import (
+    RecognitionThread, VoiceCommandProcessor, WakeWordListener,
+    speak, load_settings
+)
 import keyboard
 
 
-# ------------------------------------------------------------
-# Функция для получения правильного пути к ресурсам
-# ------------------------------------------------------------
-def resource_path(relative_path):
-    """Получает абсолютный путь к ресурсу, работает и в dev, и в PyInstaller"""
-    try:
-        # PyInstaller создает временную папку и хранит путь в _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    
-    return os.path.join(base_path, relative_path)
-
-
-# ------------------------------------------------------------
-# Рабочий класс для выполнения команд в фоне
-# ------------------------------------------------------------
 class CommandWorker(QObject):
     status_update = pyqtSignal(str)
     command_finished = pyqtSignal(bool)
@@ -49,9 +38,6 @@ class CommandWorker(QObject):
         self.status_update.emit(message)
 
 
-# ------------------------------------------------------------
-# Поток для глобального перехвата пробела
-# ------------------------------------------------------------
 class GlobalHotkeyListener(QObject):
     space_pressed = pyqtSignal()
 
@@ -80,22 +66,15 @@ class GlobalHotkeyListener(QObject):
         keyboard.unhook_all()
 
 
-# ------------------------------------------------------------
-# Главное окно
-# ------------------------------------------------------------
 class VoiceAssistant(QMainWindow):
     def __init__(self):
         super().__init__()
-        
-        # Используем resource_path для загрузки UI файла
-        ui_path = resource_path('form.ui')
-        uic.loadUi(ui_path, self)
+        uic.loadUi('form.ui', self)
 
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         self.setMinimumSize(420, 680)
         self.resize(420, 680)
 
-        # Интерфейс: кнопка по центру + перенос текста
         self.recordButtonLayout_2.setAlignment(Qt.AlignCenter)
         self.recognitionLabel_3.setWordWrap(True)
         self.recognitionLabel_3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -112,15 +91,57 @@ class VoiceAssistant(QMainWindow):
         self.hotkey_listener.space_pressed.connect(self.toggle_voice_recognition)
         self.hotkey_thread.started.connect(self.hotkey_listener.run)
 
+        self.settings = load_settings()
+        self.wake_word = self.settings.get("wake_word", "улитка")
+        self.wake_thread = None
+        self.wake_listener = None
+        self.is_awake = False
+        self.start_wake_listener()
+
         self.recordButton_3.setText("🎤")
         self.recordButton_3.setStyleSheet(
             self.recordButton_3.styleSheet() + "QPushButton { font-size: 32px; }"
         )
 
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
+        self.tray_icon.setToolTip("Voice Control")
+        tray_menu = QMenu()
+        show_action = QAction("Показать", self)
+        show_action.triggered.connect(self.show_window)
+        tray_menu.addAction(show_action)
+        quit_action = QAction("Выход", self)
+        quit_action.triggered.connect(self.quit_app)
+        tray_menu.addAction(quit_action)
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self.on_tray_activated)
+        self.tray_icon.show()
+
         self.init_connections()
         self.hotkey_thread.start()
         self.show()
-        self.update_status("готов")
+        self.update_status(f"жду «{self.wake_word}»...")
+        speak(f"Привет! Я {self.wake_word}, слушаю вас.")
+
+    def start_wake_listener(self):
+        if self.wake_listener:
+            self.wake_listener.stop()
+        if self.wake_thread:
+            self.wake_thread.quit()
+            self.wake_thread.wait()
+        self.wake_listener = WakeWordListener(self.wake_word)
+        self.wake_thread = QThread()
+        self.wake_listener.moveToThread(self.wake_thread)
+        self.wake_listener.wake_word_detected.connect(self.on_wake_word)
+        self.wake_thread.started.connect(self.wake_listener.run)
+        self.wake_thread.start()
+
+    def on_wake_word(self):
+        self.play_sound()
+        self.is_awake = True
+        self.update_status("слушаю команду...")
+        speak("Слушаю")
+        self.start_voice_recognition()
 
     def init_connections(self):
         self.recordButton_3.clicked.connect(self.toggle_voice_recognition)
@@ -144,7 +165,6 @@ class VoiceAssistant(QMainWindow):
                 font-size: 32px; font-weight: bold; font-family: 'Arial';
             }
         """)
-
         self.recognition_thread = RecognitionThread()
         self.recognition_thread.text_recognized.connect(self.process_voice_command)
         self.recognition_thread.error_occurred.connect(self.on_recognition_error)
@@ -156,8 +176,7 @@ class VoiceAssistant(QMainWindow):
             self.recognition_thread.quit()
             self.recognition_thread.wait()
             self.recognition_thread = None
-
-        self.update_status("готов")
+        self.update_status(f"жду «{self.wake_word}»...")
         self.recordButton_3.setText("🎤")
         self.recordButton_3.setStyleSheet("""
             QPushButton {
@@ -194,37 +213,30 @@ class VoiceAssistant(QMainWindow):
         self.start_command(command)
 
     def start_command(self, command_text):
-        # Останавливаем запись, если она ещё идёт
         if self.is_listening:
             self.stop_voice_recognition()
-
         if self.command_thread and self.command_thread.isRunning():
             self.update_status("подождите, выполняется команда...")
             return
-
         self.recordButton_3.setEnabled(False)
         self.sendCommandButton.setEnabled(False)
         self.commandInput_3.setEnabled(False)
-
         self.command_worker = CommandWorker(command_text)
         self.command_thread = QThread()
         self.command_worker.moveToThread(self.command_thread)
-
         self.command_worker.status_update.connect(self.update_status)
         self.command_worker.command_finished.connect(self.on_command_finished)
         self.command_worker.error_occurred.connect(self.on_command_error)
-
         self.command_thread.started.connect(self.command_worker.run)
         self.command_worker.command_finished.connect(self.command_thread.quit)
         self.command_worker.error_occurred.connect(self.command_thread.quit)
         self.command_thread.finished.connect(self.cleanup_command_thread)
-
         self.command_thread.start()
 
     def on_command_finished(self, running):
         self.play_sound()
         if not running:
-            self.close()
+            self.quit_app()
 
     def on_command_error(self, error_msg):
         self.update_status(f"ошибка: {error_msg}")
@@ -237,7 +249,6 @@ class VoiceAssistant(QMainWindow):
         if self.command_thread:
             self.command_thread.deleteLater()
             self.command_thread = None
-
         self.recordButton_3.setEnabled(True)
         self.sendCommandButton.setEnabled(True)
         self.commandInput_3.setEnabled(True)
@@ -248,11 +259,36 @@ class VoiceAssistant(QMainWindow):
     def play_sound(self):
         QApplication.beep()
 
+    def show_window(self):
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def on_tray_activated(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.show_window()
+
     def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage(
+            "Voice Control",
+            "Программа продолжает работать в фоне",
+            QSystemTrayIcon.Information,
+            2000
+        )
+
+    def quit_app(self):
+        if self.wake_listener:
+            self.wake_listener.stop()
+        if self.wake_thread:
+            self.wake_thread.quit()
+            self.wake_thread.wait()
         self.hotkey_listener.stop()
         self.hotkey_thread.quit()
         self.hotkey_thread.wait()
-        super().closeEvent(event)
+        self.tray_icon.hide()
+        QApplication.quit()
 
 
 def main():
