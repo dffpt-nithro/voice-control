@@ -100,6 +100,15 @@ def t(key):
         "opened": {"ru": "открыт", "en": "opened"},
         "closed": {"ru": "закрыт", "en": "closed"},
         "speak_command": {"ru": "слушаю команду...", "en": "listening for command..."},
+        "dictation_start": {"ru": "🎙️ говорите... скажите «стоп» когда закончите", "en": "🎙️ speak... say «stop» when finished"},
+        "dictation_stop": {"ru": "⏹ остановлено", "en": "⏹ stopped"},
+        "printed": {"ru": "⌨️ текст напечатан", "en": "⌨️ text printed"},
+        "click_window": {"ru": "🎙️ кликните в окно для ввода...", "en": "🎙️ click on the window for input..."},
+        "search_query": {"ru": "🔍 ищу", "en": "🔍 searching for"},
+        "nothing_found": {"ru": "❌ Ничего не найдено", "en": "❌ Nothing found"},
+        "say_what_find": {"ru": "⚠️ скажите, что найти", "en": "⚠️ say what to find"},
+        "found_entity": {"ru": "Найдено", "en": "Found"},
+        "can_open_close": {"ru": "Можете открыть или закрыть", "en": "You can open or close it"},
     }
     lang = settings.get("language", "ru")
     return phrases.get(key, {}).get(lang, phrases.get(key, {}).get("ru", key))
@@ -144,7 +153,8 @@ INTENTS = {
         "set volume", "sound to", "volume to"
     ],
     "search": [
-        "ищи", "найди", "поищи", "поиск", "search", "find", "google", "look up"
+        "ищи", "поищи", "поиск", "search", "find", "google", "look up",
+        "найди в интернете", "поищи в интернете"
     ],
     "type": [
         "пиши", "напиши", "введи", "печатай", "type", "write", "input"
@@ -154,7 +164,8 @@ INTENTS = {
     ],
     "open": [
         "открой", "открыть", "запусти", "запустить", "включи", "включить",
-        "вруби", "start", "open", "launch", "run", "execute"
+        "вруби", "start", "open", "launch", "run", "execute",
+        "найди", "найти"
     ],
     "close": [
         "закрой", "закрыть", "выключи", "выключить", "убери", "сверни",
@@ -371,28 +382,239 @@ class VoiceCommandProcessor:
             time.sleep(0.01)
 
     @staticmethod
-    def _type_text(text):
+    def _type_text(text, callback_update=None):
+        """Включает режим непрерывной диктовки — вставляет каждую фразу в ОДНО окно"""
         import keyboard
+        import pyperclip
+
         for keyword in INTENTS["type"]:
             if keyword in text:
                 text = text.replace(keyword, "", 1).strip()
                 break
-        keyboard.write(text)
+
+        if text:
+            pyperclip.copy(text)
+            time.sleep(0.1)
+            keyboard.press_and_release('ctrl+v')
+            return
+
+        recognizer = sr.Recognizer()
+        mic = sr.Microphone()
+        first_phrase = True
+
+        with mic as source:
+            try:
+                recognizer.adjust_for_ambient_noise(source, duration=0.5)
+            except Exception:
+                pass
+            recognizer.energy_threshold = 500
+            recognizer.pause_threshold = 2.0
+
+            if callback_update:
+                callback_update(t("click_window"))
+
+            while True:
+                try:
+                    audio = recognizer.listen(source, timeout=5, phrase_time_limit=60)
+                    text = recognizer.recognize_google(audio, language="ru-RU").strip()
+
+                    if text.lower() in ["стоп", "stop", "хватит", "всё", "все", "конец", "закончить"]:
+                        if callback_update:
+                            callback_update(t("dictation_stop"))
+                        break
+
+                    if first_phrase:
+                        time.sleep(3)
+                        first_phrase = False
+
+                    pyperclip.copy(text + ". ")
+                    keyboard.press_and_release('ctrl+v')
+                    time.sleep(0.5)
+
+                    if callback_update:
+                        callback_update(f"📝 {text}")
+
+                except sr.WaitTimeoutError:
+                    pass
+                except sr.UnknownValueError:
+                    pass
+                except Exception as e:
+                    print(f"Ошибка диктовки: {e}")
+                    break
 
     @staticmethod
-    def _search_web(text):
+    def _search_web(text, callback_update=None):
+        """Включает режим поиска — слушает непрерывно"""
         import webbrowser
+
         for keyword in INTENTS["search"]:
             if keyword in text:
                 text = text.replace(keyword, "", 1).strip()
                 break
-        query = text.replace(" ", "+")
-        webbrowser.open(f"https://www.google.com/search?q={query}")
+
+        if text:
+            query = text.replace(" ", "+")
+            webbrowser.open(f"https://www.google.com/search?q={query}")
+            if callback_update:
+                callback_update(f"{t('search_query')}: {text}")
+            return
+
+        recognizer = sr.Recognizer()
+        all_parts = []
+
+        with sr.Microphone() as source:
+            try:
+                recognizer.adjust_for_ambient_noise(source, duration=0.5)
+            except Exception:
+                pass
+            recognizer.energy_threshold = 500
+
+            if callback_update:
+                callback_update(t("dictation_start"))
+
+            while True:
+                try:
+                    audio = recognizer.listen(source, timeout=5, phrase_time_limit=30)
+                    text = recognizer.recognize_google(audio, language="ru-RU").strip()
+
+                    if text.lower() in ["стоп", "stop", "хватит", "всё", "все", "конец", "закончить"]:
+                        if callback_update:
+                            callback_update(t("dictation_stop"))
+                        break
+
+                    all_parts.append(text)
+                    if callback_update:
+                        callback_update(f"📝 {text}")
+
+                except sr.WaitTimeoutError:
+                    pass
+                except sr.UnknownValueError:
+                    pass
+                except Exception as e:
+                    print(f"Ошибка диктовки: {e}")
+                    break
+
+        if all_parts:
+            query = " ".join(all_parts).replace(" ", "+")
+            webbrowser.open(f"https://www.google.com/search?q={query}")
+            if callback_update:
+                callback_update(f"{t('search_query')}: {' '.join(all_parts)}")
+
+    @staticmethod
+    def _find_file(text, callback_update=None):
+        """Ищет файл/приложение и добавляет в ENTITIES"""
+        import subprocess
+
+        for keyword in INTENTS["open"]:
+            if keyword in text:
+                text = text.replace(keyword, "", 1).strip()
+                break
+
+        if not text:
+            if callback_update:
+                callback_update(t("say_what_find"))
+            return None
+
+        query = text.lower()
+        query_clean = query.replace(" ", "_")
+
+        # 1. PATH
+        try:
+            result = subprocess.run(
+                f'where "{query}*"',
+                shell=True, capture_output=True, text=True, timeout=5
+            )
+            if result.stdout.strip():
+                path = result.stdout.strip().split('\n')[0]
+                name = os.path.basename(path).rsplit('.', 1)[0]
+                ENTITIES[query_clean] = {
+                    "keywords": [query],
+                    "open_cmd": f'start "" "{path}"',
+                    "close_cmd": f'taskkill /f /im "{os.path.basename(path)}" 2>nul',
+                    "name": {"ru": name, "en": name}
+                }
+                if callback_update:
+                    callback_update(f"✅ {t('found_entity')}: {name}. {t('can_open_close')}.")
+                return query_clean
+        except Exception:
+            pass
+
+        # 2. Рабочий стол
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        found = VoiceCommandProcessor._search_in_dir(desktop, query)
+        if found:
+            name = os.path.basename(found).rsplit('.', 1)[0]
+            ENTITIES[query_clean] = {
+                "keywords": [query],
+                "open_cmd": f'start "" "{found}"',
+                "close_cmd": f'taskkill /f /im "{os.path.basename(found)}" 2>nul',
+                "name": {"ru": name, "en": name}
+            }
+            if callback_update:
+                callback_update(f"✅ {t('found_entity')}: {name}. {t('can_open_close')}.")
+            return query_clean
+
+        # 3. Документы
+        documents = os.path.join(os.path.expanduser("~"), "Documents")
+        found = VoiceCommandProcessor._search_in_dir(documents, query)
+        if found:
+            name = os.path.basename(found).rsplit('.', 1)[0]
+            ENTITIES[query_clean] = {
+                "keywords": [query],
+                "open_cmd": f'start "" "{found}"',
+                "close_cmd": f'taskkill /f /im "{os.path.basename(found)}" 2>nul',
+                "name": {"ru": name, "en": name}
+            }
+            if callback_update:
+                callback_update(f"✅ {t('found_entity')}: {name}. {t('can_open_close')}.")
+            return query_clean
+
+        # 4. Program Files
+        for prog_dir in ["C:\\Program Files", "C:\\Program Files (x86)"]:
+            try:
+                for entry in os.listdir(prog_dir):
+                    if query in entry.lower():
+                        full_dir = os.path.join(prog_dir, entry)
+                        if os.path.isdir(full_dir):
+                            for sub_entry in os.listdir(full_dir):
+                                if sub_entry.lower().endswith('.exe') and query in sub_entry.lower():
+                                    path = os.path.join(full_dir, sub_entry)
+                                    ENTITIES[query_clean] = {
+                                        "keywords": [query],
+                                        "open_cmd": f'start "" "{path}"',
+                                        "close_cmd": f'taskkill /f /im "{os.path.basename(path)}" 2>nul',
+                                        "name": {"ru": entry, "en": entry}
+                                    }
+                                    if callback_update:
+                                        callback_update(f"✅ {t('found_entity')}: {entry}. {t('can_open_close')}.")
+                                    return query_clean
+            except Exception:
+                pass
+
+        if callback_update:
+            callback_update(f"{t('nothing_found')}: {text}")
+        return None
+
+    @staticmethod
+    def _search_in_dir(directory, query):
+        """Рекурсивно ищет файл/папку по имени (до 2 уровней)"""
+        try:
+            for entry in os.listdir(directory):
+                if query in entry.lower():
+                    return os.path.join(directory, entry)
+            for entry in os.listdir(directory):
+                full_path = os.path.join(directory, entry)
+                if os.path.isdir(full_path):
+                    for sub_entry in os.listdir(full_path):
+                        if query in sub_entry.lower():
+                            return os.path.join(full_path, sub_entry)
+        except Exception:
+            pass
+        return None
 
     @staticmethod
     def _set_language(text, callback_update=None):
         """Переключает язык озвучки"""
-        # Проверяем прямое указание языка
         if any(w in text for w in ["английский", "англ", "english", "английски"]):
             settings["language"] = "en"
             save_settings(settings)
@@ -406,26 +628,8 @@ class VoiceCommandProcessor:
                 callback_update(t("lang_ru"))
             speak_ru("Язык изменён на русский")
         else:
-            # Если не определили — проверяем старые длинные фразы
-            if any(w in text for w in ["смени", "поменяй", "переключи", "change", "switch"]):
-                if "английский" in text or "англ" in text or "english" in text:
-                    settings["language"] = "en"
-                    save_settings(settings)
-                    if callback_update:
-                        callback_update(t("lang_en"))
-                    speak_en("Language set to English")
-                elif "русский" in text or "рус" in text or "russian" in text:
-                    settings["language"] = "ru"
-                    save_settings(settings)
-                    if callback_update:
-                        callback_update(t("lang_ru"))
-                    speak_ru("Язык изменён на русский")
-                else:
-                    if callback_update:
-                        callback_update("⚠️ скажите: русский или английский")
-            else:
-                if callback_update:
-                    callback_update("⚠️ скажите: русский или английский")
+            if callback_update:
+                callback_update("⚠️ скажите: русский или английский")
 
     @staticmethod
     def execute_command(text, callback_update=None):
@@ -439,20 +643,26 @@ class VoiceCommandProcessor:
             VoiceCommandProcessor._set_language(text, callback_update)
             return True
 
-        # === ПОИСК ===
+        # === ПОИСК В ИНТЕРНЕТЕ ===
         if intent == "search":
-            VoiceCommandProcessor._search_web(text)
-            if callback_update:
-                callback_update("🔍 " + t("searching"))
-            speak(t("searching"))
+            VoiceCommandProcessor._search_web(text, callback_update)
             return True
 
         # === ПЕЧАТЬ ===
         if intent == "type":
-            VoiceCommandProcessor._type_text(text)
-            if callback_update:
-                callback_update("⌨️ " + t("typing"))
-            speak(t("typing"))
+            VoiceCommandProcessor._type_text(text, callback_update)
+            return True
+
+        # === ПОИСК ФАЙЛОВ (добавляет в ENTITIES и открывает) ===
+        if intent == "open" and not entity:
+            entity_key = VoiceCommandProcessor._find_file(text, callback_update)
+            if entity_key and entity_key in ENTITIES:
+                data = ENTITIES[entity_key]
+                os.system(data["open_cmd"])
+                name = get_entity_name(data)
+                if callback_update:
+                    callback_update(f"✅ {name} {t('opened')}")
+                speak(f"{t('opening')} {name}")
             return True
 
         # === ЧИТАТЬ ===
