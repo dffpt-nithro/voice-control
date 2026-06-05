@@ -5,10 +5,9 @@ from PyQt5.QtWidgets import (
     QSystemTrayIcon, QMenu, QAction, QStyle
 )
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QIcon
 from VoiceControl import (
     RecognitionThread, VoiceCommandProcessor, WakeWordListener,
-    speak, load_settings
+    speak, stop_speaking, load_settings, t
 )
 import keyboard
 
@@ -18,16 +17,18 @@ class CommandWorker(QObject):
     command_finished = pyqtSignal(bool)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, command_text):
+    def __init__(self, command_text, hide_window_callback=None):
         super().__init__()
         self.command_text = command_text
+        self.hide_window_callback = hide_window_callback
 
     @pyqtSlot()
     def run(self):
         try:
             running = VoiceCommandProcessor.execute_command(
                 self.command_text,
-                callback_update=self._on_status
+                callback_update=self._on_status,
+                hide_window_callback=self.hide_window_callback
             )
             self.command_finished.emit(running)
         except Exception as e:
@@ -75,11 +76,6 @@ class VoiceAssistant(QMainWindow):
         self.setMinimumSize(420, 680)
         self.resize(420, 680)
 
-        self.recordButtonLayout_2.setAlignment(Qt.AlignCenter)
-        self.recognitionLabel_3.setWordWrap(True)
-        self.recognitionLabel_3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.recognitionFrame_3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
         self.recognition_thread = None
         self.command_thread = None
         self.command_worker = None
@@ -95,13 +91,9 @@ class VoiceAssistant(QMainWindow):
         self.wake_word = self.settings.get("wake_word", "улитка")
         self.wake_thread = None
         self.wake_listener = None
-        self.is_awake = False
         self.start_wake_listener()
 
         self.recordButton_3.setText("🎤")
-        self.recordButton_3.setStyleSheet(
-            self.recordButton_3.styleSheet() + "QPushButton { font-size: 32px; }"
-        )
 
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
@@ -121,7 +113,7 @@ class VoiceAssistant(QMainWindow):
         self.hotkey_thread.start()
         self.show()
         self.update_status(f"жду «{self.wake_word}»...")
-        speak(f"Привет! Я {self.wake_word}, слушаю вас.")
+        speak(t("greeting"))
 
     def start_wake_listener(self):
         if self.wake_listener:
@@ -137,8 +129,8 @@ class VoiceAssistant(QMainWindow):
         self.wake_thread.start()
 
     def on_wake_word(self):
+        stop_speaking()
         self.play_sound()
-        self.is_awake = True
         self.update_status("слушаю команду...")
         speak("Слушаю")
         self.start_voice_recognition()
@@ -162,7 +154,7 @@ class VoiceAssistant(QMainWindow):
             QPushButton {
                 background-color: #330000; color: #ff4444;
                 border: 2px solid #ff4444; border-radius: 60px;
-                font-size: 32px; font-weight: bold; font-family: 'Arial';
+                font-size: 32px; font-weight: bold;
             }
         """)
         self.recognition_thread = RecognitionThread()
@@ -182,14 +174,7 @@ class VoiceAssistant(QMainWindow):
             QPushButton {
                 background-color: #0a0a0a; color: #88ccff;
                 border: 2px solid #66ccff; border-radius: 60px;
-                font-size: 32px; font-weight: bold; font-family: 'Arial';
-            }
-            QPushButton:hover {
-                background-color: #1a1a1a; border: 2px solid #88ddff;
-                box-shadow: 0 0 20px rgba(102, 204, 255, 0.3);
-            }
-            QPushButton:pressed {
-                background-color: #002233; border: 2px solid #aaffff;
+                font-size: 32px; font-weight: bold;
             }
         """)
 
@@ -216,12 +201,12 @@ class VoiceAssistant(QMainWindow):
         if self.is_listening:
             self.stop_voice_recognition()
         if self.command_thread and self.command_thread.isRunning():
-            self.update_status("подождите, выполняется команда...")
+            self.update_status("подождите...")
             return
         self.recordButton_3.setEnabled(False)
         self.sendCommandButton.setEnabled(False)
         self.commandInput_3.setEnabled(False)
-        self.command_worker = CommandWorker(command_text)
+        self.command_worker = CommandWorker(command_text, hide_window_callback=self.hide_for_reading)
         self.command_thread = QThread()
         self.command_worker.moveToThread(self.command_thread)
         self.command_worker.status_update.connect(self.update_status)
@@ -233,12 +218,17 @@ class VoiceAssistant(QMainWindow):
         self.command_thread.finished.connect(self.cleanup_command_thread)
         self.command_thread.start()
 
+    def hide_for_reading(self):
+        self.hide()
+
     def on_command_finished(self, running):
+        self.show()
         self.play_sound()
         if not running:
             self.quit_app()
 
     def on_command_error(self, error_msg):
+        self.show()
         self.update_status(f"ошибка: {error_msg}")
         self.play_sound()
 
@@ -249,6 +239,7 @@ class VoiceAssistant(QMainWindow):
         if self.command_thread:
             self.command_thread.deleteLater()
             self.command_thread = None
+        self.show()
         self.recordButton_3.setEnabled(True)
         self.sendCommandButton.setEnabled(True)
         self.commandInput_3.setEnabled(True)
@@ -273,7 +264,7 @@ class VoiceAssistant(QMainWindow):
         self.hide()
         self.tray_icon.showMessage(
             "Voice Control",
-            "Программа продолжает работать в фоне",
+            "Программа работает в фоне",
             QSystemTrayIcon.Information,
             2000
         )
