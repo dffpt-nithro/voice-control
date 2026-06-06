@@ -17,10 +17,11 @@ class CommandWorker(QObject):
     command_finished = pyqtSignal(bool)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, command_text, hide_window_callback=None):
+    def __init__(self, command_text, hide_window_callback=None, show_window_callback=None):
         super().__init__()
         self.command_text = command_text
         self.hide_window_callback = hide_window_callback
+        self.show_window_callback = show_window_callback
 
     @pyqtSlot()
     def run(self):
@@ -28,7 +29,8 @@ class CommandWorker(QObject):
             running = VoiceCommandProcessor.execute_command(
                 self.command_text,
                 callback_update=self._on_status,
-                hide_window_callback=self.hide_window_callback
+                hide_window_callback=self.hide_window_callback,
+                show_window_callback=self.show_window_callback
             )
             self.command_finished.emit(running)
         except Exception as e:
@@ -206,7 +208,11 @@ class VoiceAssistant(QMainWindow):
         self.recordButton_3.setEnabled(False)
         self.sendCommandButton.setEnabled(False)
         self.commandInput_3.setEnabled(False)
-        self.command_worker = CommandWorker(command_text, hide_window_callback=self.hide_for_reading)
+        self.command_worker = CommandWorker(
+            command_text,
+            hide_window_callback=self.hide_for_reading,
+            show_window_callback=self.show_window
+        )
         self.command_thread = QThread()
         self.command_worker.moveToThread(self.command_thread)
         self.command_worker.status_update.connect(self.update_status)
