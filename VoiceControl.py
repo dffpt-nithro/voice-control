@@ -34,7 +34,15 @@ _tts_engine = None
 
 def speak(text):
     global _tts_engine
-    threading.Thread(target=speak_ru, args=(text,), daemon=True).start()
+    # Проверка mute – если включён, ничего не произносим
+    if settings.get("mute", False):
+        return
+    lang = settings.get("language", "ru")
+    if lang == "en":
+        target = speak_en
+    else:
+        target = speak_ru
+    threading.Thread(target=target, args=(text,), daemon=True).start()
 
 def speak_ru(text):
     global _tts_engine
@@ -45,6 +53,24 @@ def speak_ru(text):
         for voice in voices:
             name_lower = voice.name.lower()
             if any(x in name_lower for x in ['russian', 'русский', 'irina', 'microsoft ru', 'tts_ms_ru']):
+                _tts_engine.setProperty('voice', voice.id)
+                break
+        _tts_engine.say(text)
+        _tts_engine.runAndWait()
+    except Exception:
+        pass
+    finally:
+        _tts_engine = None
+
+def speak_en(text):
+    global _tts_engine
+    try:
+        import pyttsx3
+        _tts_engine = pyttsx3.init()
+        voices = _tts_engine.getProperty('voices')
+        for voice in voices:
+            name_lower = voice.name.lower()
+            if any(x in name_lower for x in ['zira', 'david', 'mark', 'english']):
                 _tts_engine.setProperty('voice', voice.id)
                 break
         _tts_engine.say(text)

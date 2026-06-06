@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot
 from VoiceControl import (
     RecognitionThread, VoiceCommandProcessor, WakeWordListener,
-    speak, stop_speaking, load_settings, t
+    speak, stop_speaking, load_settings, save_settings, settings, t
 )
 import keyboard
 
@@ -75,8 +75,8 @@ class VoiceAssistant(QMainWindow):
         uic.loadUi('form.ui', self)
 
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
-        self.setMinimumSize(420, 680)
-        self.resize(420, 680)
+        self.setMinimumSize(420, 720)   # немного увеличил высоту для новой панели
+        self.resize(420, 720)
 
         self.recognition_thread = None
         self.command_thread = None
@@ -89,34 +89,107 @@ class VoiceAssistant(QMainWindow):
         self.hotkey_listener.space_pressed.connect(self.toggle_voice_recognition)
         self.hotkey_thread.started.connect(self.hotkey_listener.run)
 
-        self.settings = load_settings()
-        self.wake_word = self.settings.get("wake_word", "улитка")
+        # Используем глобальный settings из VoiceControl
+        self.wake_word = settings.get("wake_word", "улитка")
         self.wake_thread = None
         self.wake_listener = None
         self.start_wake_listener()
 
         self.recordButton_3.setText("🎤")
 
+        # Инициализация переключателей языка и mute
+        self.init_settings_ui()
+
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
         self.tray_icon.setToolTip("Voice Control")
-        tray_menu = QMenu()
+        self.tray_menu = QMenu()
         show_action = QAction("Показать", self)
         show_action.triggered.connect(self.show_window)
-        tray_menu.addAction(show_action)
+        self.tray_menu.addAction(show_action)
         quit_action = QAction("Выход", self)
         quit_action.triggered.connect(self.quit_app)
-        tray_menu.addAction(quit_action)
-        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_menu.addAction(quit_action)
+        self.tray_icon.setContextMenu(self.tray_menu)
         self.tray_icon.activated.connect(self.on_tray_activated)
         self.tray_icon.show()
 
         self.init_connections()
         self.hotkey_thread.start()
+        self.retranslate_ui()
         self.show()
         self.update_status(f"жду «{self.wake_word}»...")
         speak(t("greeting"))
 
+    # ====== МГНОВЕННЫЙ ПЕРЕВОД ИНТЕРФЕЙСА ======
+    def retranslate_ui(self):
+        lang = settings.get("language", "ru")
+        tr = lambda ru_text, en_text: ru_text if lang == "ru" else en_text
+
+        self.setWindowTitle(tr("Voice Control", "Voice Control"))
+        self.recordButtonLabel_2.setText(tr("нажмите и говорите", "press and speak"))
+        self.commandInput_3.setPlaceholderText(tr("введите команду...", "type a command..."))
+        self.commandInputLabel.setText(tr("ручной ввод команд", "manual command input"))
+        self.tray_icon.setToolTip(tr("Voice Control", "Voice Control"))
+
+        # Обновление пунктов трея
+        if hasattr(self, 'tray_menu'):
+            self.tray_menu.actions()[0].setText(tr("Показать", "Show"))
+            self.tray_menu.actions()[1].setText(tr("Выход", "Exit"))
+
+    def update_status(self, text):
+        prefix = "распознано:" if settings.get("language", "ru") == "ru" else "recognized:"
+        self.recognitionLabel_3.setText(f"{prefix} {text}")
+
+    # ====== УПРАВЛЕНИЕ НАСТРОЙКАМИ ======
+    def init_settings_ui(self):
+        lang = settings.get("language", "ru")
+        muted = settings.get("mute", False)
+
+        self.langRuButton.setChecked(lang == "ru")
+        self.langEnButton.setChecked(lang == "en")
+        self.muteButton.setChecked(muted)
+        self._update_mute_button_icon(muted)
+
+        self.langRuButton.clicked.connect(self.on_lang_ru_clicked)
+        self.langEnButton.clicked.connect(self.on_lang_en_clicked)
+        self.muteButton.clicked.connect(self.on_mute_toggled)
+
+    def _update_mute_button_icon(self, muted):
+        self.muteButton.setText("🔇" if muted else "🔊")
+
+    def on_lang_ru_clicked(self):
+        if settings.get("language") != "ru":
+            settings["language"] = "ru"
+            save_settings(settings)
+            self.langRuButton.setChecked(True)
+            self.langEnButton.setChecked(False)
+            self.retranslate_ui()
+            self.update_status(t("lang_ru"))
+            # speak(t("lang_ru"))   # если нужна голосовая обратная связь
+
+    def on_lang_en_clicked(self):
+        if settings.get("language") != "en":
+            settings["language"] = "en"
+            save_settings(settings)
+            self.langRuButton.setChecked(False)
+            self.langEnButton.setChecked(True)
+            self.retranslate_ui()
+            self.update_status(t("lang_en"))
+            # speak(t("lang_en"))
+
+    def on_mute_toggled(self):
+        muted = not settings.get("mute", False)
+        settings["mute"] = muted
+        save_settings(settings)
+        self._update_mute_button_icon(muted)
+        if muted:
+            stop_speaking()          # мгновенно останавливаем текущую озвучку
+            self.update_status(t("muted"))
+        else:
+            self.update_status(t("unmuted"))
+
+    # ====== ОСТАЛЬНЫЕ МЕТОДЫ БЕЗ ИЗМЕНЕНИЙ ======
     def start_wake_listener(self):
         if self.wake_listener:
             self.wake_listener.stop()
@@ -249,9 +322,6 @@ class VoiceAssistant(QMainWindow):
         self.recordButton_3.setEnabled(True)
         self.sendCommandButton.setEnabled(True)
         self.commandInput_3.setEnabled(True)
-
-    def update_status(self, text):
-        self.recognitionLabel_3.setText(f"распознано: {text}")
 
     def play_sound(self):
         QApplication.beep()
